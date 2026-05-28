@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+spam_checker.db
+model/*.pkl
+data/*.csv

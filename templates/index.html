@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Spam Message Detector</title>
+    <style>
+        :root {
+            --bg: #f5f7fb;
+            --panel: #ffffff;
+            --ink: #172033;
+            --muted: #657089;
+            --line: #dfe5ef;
+            --primary: #2859c5;
+            --primary-dark: #1f469b;
+            --safe: #138a4b;
+            --safe-bg: #e7f7ee;
+            --danger: #c72f35;
+            --danger-bg: #fdebec;
+            --shadow: 0 18px 45px rgba(30, 42, 70, 0.12);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            line-height: 1.5;
+        }
+
+        .page {
+            width: min(1120px, calc(100% - 32px));
+            margin: 0 auto;
+            padding: 42px 0;
+        }
+
+        .app-header {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .app-header h1 {
+            margin: 0;
+            font-size: clamp(2rem, 4vw, 3.25rem);
+            line-height: 1.05;
+            letter-spacing: 0;
+        }
+
+        .app-header p {
+            margin: 10px 0 0;
+            max-width: 680px;
+            color: var(--muted);
+            font-size: 1rem;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            flex: 0 0 auto;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: 10px 14px;
+            background: var(--panel);
+            color: var(--muted);
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--safe);
+        }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 360px;
+            gap: 22px;
+            align-items: start;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+        }
+
+        .checker {
+            padding: 24px;
+        }
+
+        .checker label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 800;
+            color: var(--ink);
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 190px;
+            resize: vertical;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 16px;
+            color: var(--ink);
+            font: inherit;
+            outline: none;
+            transition: border-color 160ms ease, box-shadow 160ms ease;
+        }
+
+        textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(40, 89, 197, 0.14);
+        }
+
+        .actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .hint {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+
+        button {
+            border: 0;
+            border-radius: 8px;
+            background: var(--primary);
+            color: #ffffff;
+            cursor: pointer;
+            font: inherit;
+            font-weight: 800;
+            min-height: 46px;
+            padding: 0 18px;
+            transition: background 160ms ease, transform 160ms ease;
+        }
+
+        button:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.65;
+            transform: none;
+        }
+
+        .result-card {
+            padding: 22px;
+        }
+
+        .result-title {
+            margin: 0 0 14px;
+            color: var(--muted);
+            font-size: 0.88rem;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .result-badge {
+            display: block;
+            border-radius: 8px;
+            padding: 18px;
+            background: #f3f6fb;
+            border: 1px solid var(--line);
+            color: var(--muted);
+            font-weight: 900;
+            font-size: 1.12rem;
+        }
+
+        .result-badge.safe {
+            background: var(--safe-bg);
+            border-color: rgba(19, 138, 75, 0.24);
+            color: var(--safe);
+        }
+
+        .result-badge.danger {
+            background: var(--danger-bg);
+            border-color: rgba(199, 47, 53, 0.24);
+            color: var(--danger);
+        }
+
+        .meter {
+            height: 10px;
+            margin-top: 16px;
+            border-radius: 999px;
+            background: #e9eef6;
+            overflow: hidden;
+        }
+
+        .meter-fill {
+            width: 0%;
+            height: 100%;
+            border-radius: inherit;
+            background: var(--primary);
+            transition: width 240ms ease;
+        }
+
+        .meter-fill.safe {
+            background: var(--safe);
+        }
+
+        .meter-fill.danger {
+            background: var(--danger);
+        }
+
+        .history {
+            margin-top: 24px;
+            overflow: hidden;
+        }
+
+        .history-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .history-header h2 {
+            margin: 0;
+            font-size: 1.1rem;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 760px;
+        }
+
+        th,
+        td {
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--line);
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background: #f8fafd;
+            color: var(--muted);
+            font-size: 0.78rem;
+            letter-spacing: 0;
+            text-transform: uppercase;
+        }
+
+        .message-cell {
+            max-width: 520px;
+            color: #2d384f;
+        }
+
+        .tag {
+            display: inline-flex;
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-weight: 900;
+            font-size: 0.78rem;
+        }
+
+        .tag.safe {
+            background: var(--safe-bg);
+            color: var(--safe);
+        }
+
+        .tag.danger {
+            background: var(--danger-bg);
+            color: var(--danger);
+        }
+
+        .empty-state {
+            padding: 26px 20px;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        @media (max-width: 860px) {
+            .app-header,
+            .actions {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .workspace {
+                grid-template-columns: 1fr;
+            }
+
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="page">
+        <header class="app-header">
+            <div>
+                <h1>AI Spam Message Detector</h1>
+                <p>Analyze suspicious SMS content with a trained TF-IDF and Naive Bayes classifier, then store every check in an SQLite audit trail.</p>
+            </div>
+            <div class="status-pill" aria-label="System status">
+                <span class="status-dot"></span>
+                Model Ready
+            </div>
+        </header>
+
+        <section class="workspace" aria-label="Spam detection workspace">
+            <form class="panel checker" id="spam-form">
+                <label for="message">Message Text</label>
+                <textarea id="message" name="message" placeholder="Paste the message you want to verify..." required></textarea>
+                <div class="actions">
+                    <p class="hint">Checks run asynchronously and are saved to history.</p>
+                    <button type="submit" id="check-button">Check Message</button>
+                </div>
+            </form>
+
+            <aside class="panel result-card" aria-live="polite">
+                <p class="result-title">Detection Result</p>
+                <div class="result-badge" id="result-badge">Waiting for message</div>
+                <div class="meter" aria-hidden="true">
+                    <div class="meter-fill" id="meter-fill"></div>
+                </div>
+            </aside>
+        </section>
+
+        <section class="panel history">
+            <div class="history-header">
+                <h2>Recent Audit Logs / History</h2>
+                <span class="status-pill">{{ logs|length }} Records</span>
+            </div>
+
+            <div class="table-wrap">
+                {% if logs %}
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Message</th>
+                                <th>Label</th>
+                                <th>Spam Probability</th>
+                                <th>Logged At</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-body">
+                            {% for log in logs %}
+                                <tr>
+                                    <td>{{ log["id"] }}</td>
+                                    <td class="message-cell">{{ log["raw_text"] }}</td>
+                                    <td>
+                                        <span class="tag {{ 'danger' if log['classification_label'] == 'Spam' else 'safe' }}">
+                                            {{ log["classification_label"] }}
+                                        </span>
+                                    </td>
+                                    <td>{{ "%.2f"|format(log["spam_probability"] * 100) }}%</td>
+                                    <td>{{ log["logged_at"] }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div class="empty-state" id="empty-state">No messages checked yet.</div>
+                    <table style="display: none;" id="history-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Message</th>
+                                <th>Label</th>
+                                <th>Spam Probability</th>
+                                <th>Logged At</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-body"></tbody>
+                    </table>
+                {% endif %}
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const form = document.getElementById("spam-form");
+        const messageInput = document.getElementById("message");
+        const button = document.getElementById("check-button");
+        const resultBadge = document.getElementById("result-badge");
+        const meterFill = document.getElementById("meter-fill");
+        const historyBody = document.getElementById("history-body");
+        const emptyState = document.getElementById("empty-state");
+        const historyTable = document.getElementById("history-table");
+
+        function setResult(label, confidence, isSpam) {
+            const alertClass = isSpam ? "danger" : "safe";
+            const readableLabel = isSpam ? "Spam Message" : "Safe Message";
+
+            resultBadge.className = `result-badge ${alertClass}`;
+            resultBadge.textContent = `${readableLabel} - ${confidence.toFixed(1)}% Confidence`;
+            meterFill.className = `meter-fill ${alertClass}`;
+            meterFill.style.width = `${Math.min(confidence, 100)}%`;
+        }
+
+        function prependHistoryRow(message, result) {
+            if (!historyBody) {
+                return;
+            }
+
+            if (emptyState && historyTable) {
+                emptyState.style.display = "none";
+                historyTable.style.display = "table";
+            }
+
+            const row = document.createElement("tr");
+            const tagClass = result.is_spam ? "danger" : "safe";
+            const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+
+            row.innerHTML = `
+                <td>New</td>
+                <td class="message-cell"></td>
+                <td><span class="tag ${tagClass}">${result.label}</span></td>
+                <td>${result.spam_probability.toFixed(2)}%</td>
+                <td>${now}</td>
+            `;
+            row.querySelector(".message-cell").textContent = message;
+            historyBody.prepend(row);
+        }
+
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            const text = messageInput.value.trim();
+            if (!text) {
+                setResult("Ham", 0, false);
+                resultBadge.textContent = "Please enter a message first.";
+                return;
+            }
+
+            button.disabled = true;
+            button.textContent = "Checking...";
+
+            try {
+                const response = await fetch("/predict", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ text }),
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || "Prediction failed.");
+                }
+
+                setResult(data.label, data.confidence, data.is_spam);
+                prependHistoryRow(text, data);
+            } catch (error) {
+                resultBadge.className = "result-badge danger";
+                resultBadge.textContent = error.message;
+                meterFill.className = "meter-fill danger";
+                meterFill.style.width = "100%";
+            } finally {
+                button.disabled = false;
+                button.textContent = "Check Message";
+            }
+        });
+    </script>
+</body>
+</html>
